@@ -122,8 +122,8 @@
   button:focus-visible { outline: 3px solid var(--lcd); outline-offset: 3px; }
   .pad {
     display: grid;
-    grid-template-columns: repeat(3, 64px);
-    grid-template-rows: repeat(2, 64px);
+    grid-template-columns: repeat(3, 60px);
+    grid-template-rows: repeat(3, 60px);
     gap: 8px;
     justify-content: center;
   }
@@ -136,14 +136,37 @@
     font-size: 18px;
     cursor: pointer;
     touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 0 #1d2119;
+    transition: background 0.06s, color 0.06s, transform 0.06s, box-shadow 0.06s;
   }
-  .pad button:active { background: #4a5340; }
+  .pad button:active,
+  .pad button.pressed {
+    background: var(--lcd);
+    color: var(--ink);
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #1d2119;
+  }
   .pad .up { grid-column: 2; grid-row: 1; }
   .pad .left { grid-column: 1; grid-row: 2; }
-  .pad .down { grid-column: 2; grid-row: 2; }
+  .pad .down { grid-column: 2; grid-row: 3; }
   .pad .right { grid-column: 3; grid-row: 2; }
+  .pad .mid {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+  .pad .mid::after {
+    content: "";
+    width: 20px;
+    height: 20px;
+    background: currentColor;
+  }
   .hint { margin: 0; font-size: 20px; line-height: 1.2; color: var(--label); }
-  @media (hover: hover) and (pointer: fine) { .pad { display: none; } }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -170,11 +193,12 @@
   <div class="pad" aria-label="Yön tuşları">
     <button class="up" type="button" data-dir="up" aria-label="Yukarı">▲</button>
     <button class="left" type="button" data-dir="left" aria-label="Sola">◀</button>
+    <button class="mid" type="button" data-dir="center" aria-label="Duraklat veya devam et"></button>
     <button class="down" type="button" data-dir="down" aria-label="Aşağı">▼</button>
     <button class="right" type="button" data-dir="right" aria-label="Sağa">▶</button>
   </div>
 
-  <p class="hint">Ok tuşları ya da WASD ile yönlendir. Boşluk: duraklat. Telefonda ekranda parmağınla kaydır.</p>
+  <p class="hint">Ok tuşları ya da WASD ile yönlendir, ekrandaki oklara tıkla veya dokun. Ortadaki tuş ya da boşluk: duraklat. Telefonda ekranda kaydırabilirsin.</p>
 </main>
 
 <script>
@@ -330,7 +354,7 @@ function step(s, want, rng) {
     if (mode !== 'playing') return;
     mode = 'paused';
     clearTimeout(timer);
-    showOverlay('DURAKLATILDI', 'Devam etmek için boşluğa bas.', 'DEVAM');
+    showOverlay('DURAKLATILDI', 'Devam etmek için boşluğa ya da ortadaki tuşa bas.', 'DEVAM');
   }
 
   function toggle() {
@@ -352,10 +376,44 @@ function step(s, want, rng) {
     W: 'up', S: 'down', A: 'left', D: 'right'
   };
 
+  var padBtns = {};
+  Array.prototype.forEach.call(document.querySelectorAll('.pad button'), function (b) {
+    padBtns[b.getAttribute('data-dir')] = b;
+  });
+
+  function pressVisual(name, on) {
+    var b = padBtns[name];
+    if (!b) return;
+    clearTimeout(b._t);
+    if (on) b.classList.add('pressed');
+    else b._t = setTimeout(function () { b.classList.remove('pressed'); }, 90);
+  }
+
   document.addEventListener('keydown', function (e) {
-    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); toggle(); return; }
+    if (e.key === ' ' || e.code === 'Space') {
+      e.preventDefault();
+      if (e.repeat) return;
+      pressVisual('center', true);
+      toggle();
+      return;
+    }
     var name = KEYS[e.key];
-    if (name) { e.preventDefault(); if (mode === 'over') return; turn(name); }
+    if (name) {
+      e.preventDefault();
+      pressVisual(name, true);
+      if (mode === 'over') return;
+      turn(name);
+    }
+  });
+
+  document.addEventListener('keyup', function (e) {
+    if (e.key === ' ' || e.code === 'Space') { pressVisual('center', false); return; }
+    var name = KEYS[e.key];
+    if (name) pressVisual(name, false);
+  });
+
+  window.addEventListener('blur', function () {
+    for (var n in padBtns) pressVisual(n, false);
   });
 
   startBtn.addEventListener('click', play);
@@ -363,7 +421,9 @@ function step(s, want, rng) {
   Array.prototype.forEach.call(document.querySelectorAll('.pad button'), function (b) {
     b.addEventListener('pointerdown', function (e) {
       e.preventDefault();
-      if (mode !== 'over') turn(b.getAttribute('data-dir'));
+      var dir = b.getAttribute('data-dir');
+      if (dir === 'center') { toggle(); return; }
+      if (mode !== 'over') turn(dir);
     });
   });
 
