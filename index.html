@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Yılan Oyunu</title>
+<title>Snake Game</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
 <style>
   html, body { margin: 0; }
-  /* Layout: tek sütun, ortada bir "cihaz". Üstte skor çubuğu, ortada LCD ekran, altta dokunmatik yön tuşları. */
+  /* Layout: single column "device". Title and language switch on top, scores, LCD screen, then the direction pad. */
   :root {
     --case: #2a2f25;
     --case-edge: #3a4132;
@@ -52,11 +52,30 @@
   .bar {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: center;
     gap: 12px;
     flex-wrap: wrap;
   }
-  .scores { display: flex; gap: 20px; }
+  .lang {
+    display: flex;
+    border: 2px solid var(--case-edge);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .lang button {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--label);
+    background: transparent;
+    border: 0;
+    padding: 8px 11px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lang button[aria-pressed="true"] { background: var(--lcd); color: var(--ink); }
+  .lang button:focus-visible { outline-offset: -3px; }
+  .scores { display: flex; justify-content: space-between; gap: 20px; }
   .score { display: flex; flex-direction: column; line-height: 1; gap: 4px; }
   .score span:first-child {
     font-size: 16px;
@@ -174,31 +193,36 @@
 <body>
 <main class="device">
   <div class="bar">
-    <h1>YILAN</h1>
-    <div class="scores">
-      <div class="score"><span>Skor</span><span id="score">000</span></div>
-      <div class="score"><span>Rekor</span><span id="best">000</span></div>
+    <h1 data-i18n="title">SNAKE</h1>
+    <div class="lang" role="group" aria-label="Language" data-i18n-aria="langLabel">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="tr" aria-pressed="false">TR</button>
     </div>
+  </div>
+
+  <div class="scores">
+    <div class="score"><span data-i18n="score">Score</span><span id="score">000</span></div>
+    <div class="score"><span data-i18n="best">Best</span><span id="best">000</span></div>
   </div>
 
   <div class="screen">
-    <canvas id="board" width="400" height="400" aria-label="Yılan oyunu alanı"></canvas>
+    <canvas id="board" width="400" height="400" aria-label="Snake game board" data-i18n-aria="boardLabel"></canvas>
     <div class="overlay" id="overlay">
-      <h2 id="ovTitle">HAZIR MISIN?</h2>
-      <p id="ovText">Elmaları ye, duvara ve kendi kuyruğuna çarpma.</p>
-      <button id="start" type="button">BAŞLA</button>
+      <h2 id="ovTitle">READY?</h2>
+      <p id="ovText">Eat the apples. Don't hit the walls or your own tail.</p>
+      <button id="start" type="button">START</button>
     </div>
   </div>
 
-  <div class="pad" aria-label="Yön tuşları">
-    <button class="up" type="button" data-dir="up" aria-label="Yukarı">▲</button>
-    <button class="left" type="button" data-dir="left" aria-label="Sola">◀</button>
-    <button class="mid" type="button" data-dir="center" aria-label="Duraklat veya devam et"></button>
-    <button class="down" type="button" data-dir="down" aria-label="Aşağı">▼</button>
-    <button class="right" type="button" data-dir="right" aria-label="Sağa">▶</button>
+  <div class="pad" role="group" aria-label="Direction pad" data-i18n-aria="padLabel">
+    <button class="up" type="button" data-dir="up" aria-label="Up" data-i18n-aria="up">▲</button>
+    <button class="left" type="button" data-dir="left" aria-label="Left" data-i18n-aria="left">◀</button>
+    <button class="mid" type="button" data-dir="center" aria-label="Pause or resume" data-i18n-aria="mid"></button>
+    <button class="down" type="button" data-dir="down" aria-label="Down" data-i18n-aria="down">▼</button>
+    <button class="right" type="button" data-dir="right" aria-label="Right" data-i18n-aria="right">▶</button>
   </div>
 
-  <p class="hint">Ok tuşları ya da WASD ile yönlendir, ekrandaki oklara tıkla veya dokun. Ortadaki tuş ya da boşluk: duraklat. Telefonda ekranda kaydırabilirsin.</p>
+  <p class="hint" data-i18n="hint">Steer with the arrow keys or WASD, or press the on-screen arrows. Middle button or Space: pause. On a phone you can also swipe on the screen.</p>
 </main>
 
 <script>
@@ -304,11 +328,79 @@ function step(s, want, rng) {
 
   function interval() { return Math.max(65, 140 - state.score * 4); }
 
-  function showOverlay(title, text, btn) {
-    ovTitle.textContent = title;
-    ovText.textContent = text;
-    startBtn.textContent = btn;
+  var I18N = {
+    en: {
+      docTitle: 'Snake Game', title: 'SNAKE', score: 'Score', best: 'Best',
+      readyTitle: 'READY?', readyText: "Eat the apples. Don't hit the walls or your own tail.", start: 'START',
+      pausedTitle: 'PAUSED', pausedText: 'Press Space or the middle button to resume.', resume: 'RESUME',
+      overTitle: 'GAME OVER', overText: function (n) { return 'Score: ' + n; }, recordTag: ' (best)', again: 'AGAIN',
+      winTitle: 'YOU WIN!', winText: function (n) { return 'You filled the whole board. Score: ' + n; },
+      hint: 'Steer with the arrow keys or WASD, or press the on-screen arrows. Middle button or Space: pause. On a phone you can also swipe on the screen.',
+      boardLabel: 'Snake game board', padLabel: 'Direction pad', langLabel: 'Language',
+      up: 'Up', down: 'Down', left: 'Left', right: 'Right', mid: 'Pause or resume'
+    },
+    tr: {
+      docTitle: 'Yılan Oyunu', title: 'YILAN', score: 'Skor', best: 'Rekor',
+      readyTitle: 'HAZIR MISIN?', readyText: 'Elmaları ye, duvara ve kendi kuyruğuna çarpma.', start: 'BAŞLA',
+      pausedTitle: 'DURAKLATILDI', pausedText: 'Devam etmek için boşluğa ya da ortadaki tuşa bas.', resume: 'DEVAM',
+      overTitle: 'OYUN BİTTİ', overText: function (n) { return 'Skorun: ' + n; }, recordTag: ' (rekor)', again: 'TEKRAR',
+      winTitle: 'KAZANDIN!', winText: function (n) { return 'Bütün alanı doldurdun. Skor: ' + n; },
+      hint: 'Ok tuşları ya da WASD ile yönlendir, ekrandaki oklara tıkla veya dokun. Ortadaki tuş ya da boşluk: duraklat. Telefonda ekranda kaydırabilirsin.',
+      boardLabel: 'Yılan oyunu alanı', padLabel: 'Yön tuşları', langLabel: 'Dil',
+      up: 'Yukarı', down: 'Aşağı', left: 'Sola', right: 'Sağa', mid: 'Duraklat veya devam et'
+    }
+  };
+  var lang = 'en';
+  try {
+    var savedLang = localStorage.getItem('snake-lang');
+    if (savedLang === 'en' || savedLang === 'tr') lang = savedLang;
+  } catch (e) {}
+  var ov = { kind: 'ready', score: 0, record: false };
+
+  function renderOverlay() {
+    var T = I18N[lang];
+    if (ov.kind === 'ready') {
+      ovTitle.textContent = T.readyTitle;
+      ovText.textContent = T.readyText;
+      startBtn.textContent = T.start;
+    } else if (ov.kind === 'paused') {
+      ovTitle.textContent = T.pausedTitle;
+      ovText.textContent = T.pausedText;
+      startBtn.textContent = T.resume;
+    } else if (ov.kind === 'won') {
+      ovTitle.textContent = T.winTitle;
+      ovText.textContent = T.winText(ov.score);
+      startBtn.textContent = T.again;
+    } else {
+      ovTitle.textContent = T.overTitle;
+      ovText.textContent = T.overText(ov.score) + (ov.record ? T.recordTag : '');
+      startBtn.textContent = T.again;
+    }
+  }
+
+  function setOverlay(kind, score, record) {
+    ov = { kind: kind, score: score || 0, record: !!record };
+    renderOverlay();
     overlay.hidden = false;
+  }
+
+  var langBtns = document.querySelectorAll('.lang button');
+
+  function applyLang(l) {
+    lang = l;
+    var T = I18N[l];
+    document.documentElement.lang = l;
+    document.title = T.docTitle;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function (el) {
+      el.textContent = T[el.getAttribute('data-i18n')];
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-aria]'), function (el) {
+      el.setAttribute('aria-label', T[el.getAttribute('data-i18n-aria')]);
+    });
+    Array.prototype.forEach.call(langBtns, function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-lang') === l ? 'true' : 'false');
+    });
+    renderOverlay();
   }
 
   function schedule() {
@@ -329,8 +421,8 @@ function step(s, want, rng) {
         try { localStorage.setItem('yilan-best', String(best)); } catch (e) {}
         updateScores();
       }
-      if (state.status === 'won') showOverlay('KAZANDIN!', 'Bütün alanı doldurdun. Skor: ' + state.score, 'TEKRAR');
-      else showOverlay('OYUN BİTTİ', 'Skorun: ' + state.score + (state.score && state.score >= best ? ' (rekor)' : ''), 'TEKRAR');
+      if (state.status === 'won') setOverlay('won', state.score, false);
+      else setOverlay('over', state.score, state.score > 0 && state.score >= best);
       return;
     }
     schedule();
@@ -354,7 +446,7 @@ function step(s, want, rng) {
     if (mode !== 'playing') return;
     mode = 'paused';
     clearTimeout(timer);
-    showOverlay('DURAKLATILDI', 'Devam etmek için boşluğa ya da ortadaki tuşa bas.', 'DEVAM');
+    setOverlay('paused');
   }
 
   function toggle() {
@@ -407,7 +499,7 @@ function step(s, want, rng) {
   });
 
   document.addEventListener('keyup', function (e) {
-    if (e.key === ' ' || e.code === 'Space') { pressVisual('center', false); return; }
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); pressVisual('center', false); return; }
     var name = KEYS[e.key];
     if (name) pressVisual(name, false);
   });
@@ -417,6 +509,15 @@ function step(s, want, rng) {
   });
 
   startBtn.addEventListener('click', play);
+
+  Array.prototype.forEach.call(langBtns, function (b) {
+    b.addEventListener('click', function () {
+      var l = b.getAttribute('data-lang');
+      applyLang(l);
+      try { localStorage.setItem('snake-lang', l); } catch (e) {}
+      b.blur();
+    });
+  });
 
   Array.prototype.forEach.call(document.querySelectorAll('.pad button'), function (b) {
     b.addEventListener('pointerdown', function (e) {
@@ -447,6 +548,7 @@ function step(s, want, rng) {
 
   document.addEventListener('visibilitychange', function () { if (document.hidden) pause(); });
 
+  applyLang(lang);
   draw();
   updateScores();
 })();
